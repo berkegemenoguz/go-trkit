@@ -1,0 +1,35 @@
+# Claude Code yerel ayarları
+.claude/
+
+# Çalışma planı — projenin teslim edilen bir parçası değil, repoya girmez
+PLAN.md
+
+# Derlenmiş binary'ler
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# CLI build çıktısı (Faz 7)
+/trkit
+/cmd/trkit/trkit
+
+# Test binary'si ve profil çıktıları
+*.test
+*.out
+*.prof
+coverage.html
+
+# Go workspace (yerel, repoya girmemeli)
+go.work
+go.work.sum
+
+# Editör / OS
+.DS_Store
+.idea/
+.vscode/
+
+# NOT: testdata/fuzz/ BİLEREK ignore edilmedi.
+# Fuzz testleri bir hata bulduğunda girdiyi testdata/fuzz/ altına yazar ve
+# bu dosyalar regresyon testi olarak commit EDİLMELİDİR.
