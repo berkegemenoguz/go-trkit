@@ -264,3 +264,99 @@ func TestIsValidIBANAgreesWithNormalize(t *testing.T) {
 		}
 	}
 }
+
+// formattedIBAN is validIBAN in display form: six groups of four and a final
+// group of two.
+const formattedIBAN = "TR33 0006 1005 1978 6457 8413 26"
+
+func TestFormatIBAN(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"compact", validIBAN, formattedIBAN},
+		{"already formatted", formattedIBAN, formattedIBAN},
+		{"lowercase", "tr330006100519786457841326", formattedIBAN},
+		{"irregular spacing", "TR33000  61005 19786457841326", formattedIBAN},
+		{"surrounding spaces", "  " + validIBAN + "  ", formattedIBAN},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := FormatIBAN(tt.input)
+			if err != nil {
+				t.Fatalf("FormatIBAN(%q) returned error %v, want none", tt.input, err)
+			}
+			if got != tt.want {
+				t.Errorf("FormatIBAN(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatIBANRejects(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty", ""},
+		{"one character short", validIBAN[:25]},
+		{"wrong check digits", "TR340006100519786457841326"},
+		{"reserved digit not zero", "TR330006110519786457841326"},
+		{"too short but checksum-clean", shortIBANPassingMod97},
+		{"foreign but checksum-clean", foreignIBANPassingMod97},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := FormatIBAN(tt.input)
+			if !errors.Is(err, ErrInvalidIBAN) {
+				t.Errorf("FormatIBAN(%q) error = %v, want %v", tt.input, err, ErrInvalidIBAN)
+			}
+			if got != "" {
+				t.Errorf("FormatIBAN(%q) = %q, want empty string on failure", tt.input, got)
+			}
+		})
+	}
+}
+
+// The two representations must convert back and forth without loss: a formatted
+// IBAN normalizes to the compact form it came from.
+func TestFormatIBANRoundTrips(t *testing.T) {
+	formatted, err := FormatIBAN(validIBAN)
+	if err != nil {
+		t.Fatalf("FormatIBAN(%q) returned error %v, want none", validIBAN, err)
+	}
+
+	back, err := NormalizeIBAN(formatted)
+	if err != nil {
+		t.Fatalf("NormalizeIBAN(%q) returned error %v, want none", formatted, err)
+	}
+	if back != validIBAN {
+		t.Errorf("round trip gave %q, want %q", back, validIBAN)
+	}
+
+	// Formatting is idempotent for the same reason: it normalizes first.
+	twice, err := FormatIBAN(formatted)
+	if err != nil {
+		t.Fatalf("FormatIBAN(%q) returned error %v, want none", formatted, err)
+	}
+	if twice != formatted {
+		t.Errorf("FormatIBAN is not idempotent: %q then %q", formatted, twice)
+	}
+}
+
+// The grouping is fixed, so the display form has a fixed width: 26 characters
+// plus six separators.
+func TestFormatIBANWidth(t *testing.T) {
+	formatted, err := FormatIBAN(validIBAN)
+	if err != nil {
+		t.Fatalf("FormatIBAN(%q) returned error %v, want none", validIBAN, err)
+	}
+
+	const want = ibanLength + (ibanLength-1)/ibanGroupSize
+	if len(formatted) != want {
+		t.Errorf("len(%q) = %d, want %d", formatted, len(formatted), want)
+	}
+}
