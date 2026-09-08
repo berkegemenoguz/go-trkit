@@ -1,8 +1,9 @@
 # Claude Code yerel ayarları
 .claude/
 
-# Çalışma planı — projenin teslim edilen bir parçası değil, repoya girmez
+# Çalışma belgeleri — projenin teslim edilen parçası değil, repoya girmez
 PLAN.md
+ILERLEME.md
 
 # Derlenmiş binary'ler
 *.exe
