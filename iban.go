@@ -10,6 +10,24 @@ const (
 	ibanReservedPos = 9
 )
 
+// IsValidIBAN reports whether iban is a valid Turkish IBAN.
+//
+// Spaces are ignored and lowercase letters are accepted, so both the grouped
+// form people write by hand and the compact form stored in databases are
+// recognized. Any other character is rejected.
+//
+// Validation covers the whole number: length, the "TR" country code, the
+// reserved zero, and the ISO 7064 mod-97 checksum. The checksum alone would not
+// be enough — strings of the wrong length can satisfy mod-97, so the structural
+// check is not redundant.
+//
+// Only Turkish IBANs are accepted. A valid IBAN from another country is
+// reported as invalid here; see the package documentation for why.
+func IsValidIBAN(iban string) bool {
+	s := cleanIBAN(iban)
+	return hasIBANStructure(s) && ibanChecksumOK(s)
+}
+
 // cleanIBAN removes ASCII spaces from s and uppercases its letters, turning the
 // grouped form people write by hand into the compact form the checks expect.
 //
@@ -55,4 +73,35 @@ func hasIBANStructure(s string) bool {
 	}
 
 	return s[ibanReservedPos] == '0'
+}
+
+// ibanChecksumOK reports whether s satisfies the ISO 7064 mod-97 check that
+// every IBAN carries, treating s as already cleaned by [cleanIBAN].
+//
+// The check is defined over the number rotated four places, so that the country
+// code and check digits move to the end, with each letter expanded to a
+// two-digit value (A is 10, Z is 35). The remainder must come out as 1.
+//
+// The remainder is accumulated digit by digit rather than by building one huge
+// integer, which keeps the arithmetic inside a machine word.
+func ibanChecksumOK(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+
+	remainder := 0
+	for i := 0; i < len(s); i++ {
+		c := s[(i+4)%len(s)]
+
+		switch {
+		case c >= '0' && c <= '9':
+			remainder = (remainder*10 + int(c-'0')) % 97
+		case c >= 'A' && c <= 'Z':
+			remainder = (remainder*100 + int(c-'A') + 10) % 97
+		default:
+			return false
+		}
+	}
+
+	return remainder == 1
 }
