@@ -8,6 +8,10 @@ import "strings"
 const (
 	ibanLength      = 26
 	ibanReservedPos = 9
+
+	// ibanGroupSize is how many characters go in each group of the display
+	// form; the last group holds the remainder.
+	ibanGroupSize = 4
 )
 
 // IsValidIBAN reports whether iban is a valid Turkish IBAN.
@@ -44,6 +48,43 @@ func NormalizeIBAN(iban string) (string, error) {
 		return "", ErrInvalidIBAN
 	}
 	return s, nil
+}
+
+// FormatIBAN returns iban grouped in fours for display, the form printed on
+// statements and shown in interfaces:
+//
+//	TR33 0006 1005 1978 6457 8413 26
+//
+// The trailing group is shorter, since 26 does not divide evenly by four.
+//
+// Input is normalized and validated first, so formatting accepts every form
+// [NormalizeIBAN] does and rejects everything it rejects, returning an empty
+// string and an error matching [ErrInvalidIBAN].
+//
+// The result round-trips: passing it back through [NormalizeIBAN] returns the
+// compact form again.
+func FormatIBAN(iban string) (string, error) {
+	s, err := NormalizeIBAN(iban)
+	if err != nil {
+		return "", err
+	}
+
+	var b strings.Builder
+	b.Grow(len(s) + (len(s)-1)/ibanGroupSize)
+
+	for i := 0; i < len(s); i += ibanGroupSize {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+
+		end := i + ibanGroupSize
+		if end > len(s) {
+			end = len(s)
+		}
+		b.WriteString(s[i:end])
+	}
+
+	return b.String(), nil
 }
 
 // cleanIBAN removes ASCII spaces from s and uppercases its letters, turning the
