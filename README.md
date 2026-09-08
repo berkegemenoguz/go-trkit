@@ -67,10 +67,17 @@ trkit.NormalizePhone("0532 123 45 67")
 |---|---|
 | `ToUpper(s string) string` | Uppercase with Turkish i/İ rules |
 | `ToLower(s string) string` | Lowercase with Turkish I/ı rules |
-| `Title(s string) string` | Capitalizes the first letter of each word |
+| `Title(s string) string` | Capitalizes the first letter of each word and lowercases the rest |
 | `ToASCII(s string) string` | Transliterates Turkish letters to plain ASCII |
 | `Slugify(s string) string` | URL slug, hyphen-separated |
 | `SlugifyWith(s, sep string) string` | URL slug with a custom separator |
+
+`Title` lowercases the remainder of each word, so it normalizes both `ahmet yılmaz`
+and `AHMET YILMAZ` to `Ahmet Yılmaz`. The trade-off is that acronyms are flattened:
+`TBMM` becomes `Tbmm`. Preserving them is planned — see [Roadmap](#roadmap).
+
+A word continues through letters, digits, and apostrophes, so Turkish suffixes stay
+lowercase: `istanbul'un` becomes `İstanbul'un`.
 
 ### Phone numbers
 
@@ -103,6 +110,18 @@ if errors.Is(err, trkit.ErrUnknownPlateCode) {
   of the wrong length. The package validates what its name promises rather than
   shipping that half-measure.
 - **Zero dependencies.** Standard library only, by design.
+
+## Roadmap
+
+**Preserving acronyms in `Title`.** Today `Title("TBMM")` returns `Tbmm`, because the
+function lowercases whatever follows the first letter. Acronyms should stay fully
+uppercase, and a later release will make them so.
+
+Detecting them automatically is harder than it looks: `TBMM` and `AHMET` are both short,
+all-uppercase words, so no rule based on shape alone separates an acronym from a shouted
+name. The likely design is a built-in set of common Turkish acronyms that callers can
+extend, rather than a heuristic that guesses wrong in both directions. Until then, keep
+acronyms out of the strings you pass to `Title`, or restore them afterwards.
 
 ## License
 
