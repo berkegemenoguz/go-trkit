@@ -24,8 +24,26 @@ const (
 // Only Turkish IBANs are accepted. A valid IBAN from another country is
 // reported as invalid here; see the package documentation for why.
 func IsValidIBAN(iban string) bool {
+	_, err := NormalizeIBAN(iban)
+	return err == nil
+}
+
+// NormalizeIBAN returns iban in the canonical form to store and compare:
+// spaces removed and letters uppercased, so that the many ways people write one
+// number collapse to a single string.
+//
+// It validates before returning, applying exactly the checks [IsValidIBAN]
+// applies — anything it returns is a valid Turkish IBAN. Invalid input yields
+// an empty string and an error matching [ErrInvalidIBAN].
+//
+// The function is idempotent: normalizing an already-normalized IBAN returns it
+// unchanged.
+func NormalizeIBAN(iban string) (string, error) {
 	s := cleanIBAN(iban)
-	return hasIBANStructure(s) && ibanChecksumOK(s)
+	if !hasIBANStructure(s) || !ibanChecksumOK(s) {
+		return "", ErrInvalidIBAN
+	}
+	return s, nil
 }
 
 // cleanIBAN removes ASCII spaces from s and uppercases its letters, turning the
