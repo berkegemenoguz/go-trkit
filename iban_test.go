@@ -1,6 +1,9 @@
 package trkit
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // validIBAN is the IBAN used throughout these tests: 26 characters, a zero in
 // the reserved position, and a checksum that satisfies mod-97. It is a
@@ -151,6 +154,113 @@ func TestIsValidIBANNeedsBothChecks(t *testing.T) {
 		}
 		if IsValidIBAN(iban) {
 			t.Errorf("IsValidIBAN(%q) = true, want false: mod-97 passes but the structure is wrong", iban)
+		}
+	}
+}
+
+func TestNormalizeIBAN(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"grouped in fours", "TR33 0006 1005 1978 6457 8413 26", validIBAN},
+		{"already compact", validIBAN, validIBAN},
+		{"lowercase", "tr330006100519786457841326", validIBAN},
+		{"mixed case and spaces", "tr33 0006 1005 1978 6457 8413 26", validIBAN},
+		{"surrounding spaces", "  " + validIBAN + "  ", validIBAN},
+		{"irregular spacing", "TR33000  61005 19786457841326", validIBAN},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NormalizeIBAN(tt.input)
+			if err != nil {
+				t.Fatalf("NormalizeIBAN(%q) returned error %v, want none", tt.input, err)
+			}
+			if got != tt.want {
+				t.Errorf("NormalizeIBAN(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeIBANRejects(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty", ""},
+		{"one character short", validIBAN[:25]},
+		{"one character long", validIBAN + "7"},
+		{"wrong check digits", "TR340006100519786457841326"},
+		{"reserved digit not zero", "TR330006110519786457841326"},
+		{"hyphen where a digit belongs", "TR33-006100519786457841326"},
+		{"too short but checksum-clean", shortIBANPassingMod97},
+		{"too long but checksum-clean", longIBANPassingMod97},
+		{"foreign but checksum-clean", foreignIBANPassingMod97},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NormalizeIBAN(tt.input)
+			if !errors.Is(err, ErrInvalidIBAN) {
+				t.Errorf("NormalizeIBAN(%q) error = %v, want %v", tt.input, err, ErrInvalidIBAN)
+			}
+			if got != "" {
+				t.Errorf("NormalizeIBAN(%q) = %q, want empty string on failure", tt.input, got)
+			}
+		})
+	}
+}
+
+// Normalizing an already-normalized IBAN must return it unchanged, so that
+// callers can apply the function to values of unknown provenance without
+// worrying whether it has run before.
+func TestNormalizeIBANIsIdempotent(t *testing.T) {
+	inputs := []string{
+		validIBAN,
+		"TR33 0006 1005 1978 6457 8413 26",
+		"tr330006100519786457841326",
+		"  " + validIBAN + "  ",
+	}
+
+	for _, input := range inputs {
+		once, err := NormalizeIBAN(input)
+		if err != nil {
+			t.Fatalf("NormalizeIBAN(%q) returned error %v, want none", input, err)
+		}
+
+		twice, err := NormalizeIBAN(once)
+		if err != nil {
+			t.Fatalf("NormalizeIBAN(%q) returned error %v on second pass, want none", once, err)
+		}
+		if twice != once {
+			t.Errorf("NormalizeIBAN is not idempotent for %q: %q then %q", input, once, twice)
+		}
+	}
+}
+
+// IsValidIBAN and NormalizeIBAN must agree on every input, since one is defined
+// in terms of the other. This pins that relationship so a later change to
+// either cannot quietly split them.
+func TestIsValidIBANAgreesWithNormalize(t *testing.T) {
+	inputs := []string{
+		validIBAN,
+		"TR33 0006 1005 1978 6457 8413 26",
+		"tr330006100519786457841326",
+		"",
+		validIBAN[:25],
+		"TR340006100519786457841326",
+		shortIBANPassingMod97,
+		longIBANPassingMod97,
+		foreignIBANPassingMod97,
+	}
+
+	for _, input := range inputs {
+		_, err := NormalizeIBAN(input)
+		if got, want := IsValidIBAN(input), err == nil; got != want {
+			t.Errorf("IsValidIBAN(%q) = %v, but NormalizeIBAN error = %v", input, got, err)
 		}
 	}
 }
