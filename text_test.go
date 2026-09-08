@@ -122,3 +122,86 @@ func TestCaseConversionsAreIdempotent(t *testing.T) {
 		}
 	}
 }
+
+func TestToASCII(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"dotted capital I", "İstanbul", "Istanbul"},
+		{"dotless i", "Iğdır", "Igdir"},
+		{"several Turkish letters", "Şanlıurfa", "Sanliurfa"},
+		{"umlauts and sharp s", "Gümüşhane", "Gumushane"},
+		{"cedilla", "Çanakkale", "Canakkale"},
+		{"circumflex", "Hakkâri", "Hakkari"},
+		{"lowercase throughout", "kırşehir", "kirsehir"},
+		{"already ascii", "Ankara", "Ankara"},
+		{"digits and punctuation", "34-İstanbul!", "34-Istanbul!"},
+		{"empty", "", ""},
+
+		// Only Turkish letters are in the table; other alphabets' accents are
+		// left alone, so the result is not guaranteed to be pure ASCII.
+		{"foreign accents pass through", "café", "café"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ToASCII(tt.input); got != tt.want {
+				t.Errorf("ToASCII(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// Every Turkish letter must map to the ASCII letter of the same case, so that
+// transliterating does not quietly change capitalization.
+func TestToASCIIPreservesCase(t *testing.T) {
+	pairs := []struct{ lower, upper string }{
+		{"ı", "I"}, {"i", "İ"},
+		{"ş", "Ş"}, {"ğ", "Ğ"}, {"ü", "Ü"},
+		{"ö", "Ö"}, {"ç", "Ç"}, {"â", "Â"},
+	}
+
+	for _, p := range pairs {
+		gotLower, gotUpper := ToASCII(p.lower), ToASCII(p.upper)
+		if gotLower != strings.ToLower(gotLower) {
+			t.Errorf("ToASCII(%q) = %q, want a lowercase result", p.lower, gotLower)
+		}
+		if gotUpper != strings.ToUpper(gotUpper) {
+			t.Errorf("ToASCII(%q) = %q, want an uppercase result", p.upper, gotUpper)
+		}
+	}
+}
+
+// This is why PlateFromCity folds lookup keys through ToASCII rather than
+// ToLower, and it is worth pinning down: the Turkish rule is right for display
+// and wrong for lookup.
+func TestToASCIIFoldsWhatToLowerCannot(t *testing.T) {
+	const want = "istanbul"
+	variants := []string{"İstanbul", "ISTANBUL", "istanbul", "Istanbul", "ıstanbul", "İSTANBUL"}
+
+	// Folding through ToASCII collapses every spelling onto one key.
+	for _, v := range variants {
+		if got := strings.ToLower(ToASCII(v)); got != want {
+			t.Errorf("strings.ToLower(ToASCII(%q)) = %q, want %q", v, got, want)
+		}
+	}
+
+	// Folding through the Turkish ToLower does not: someone typing "ISTANBUL"
+	// on an ASCII keyboard would produce "ıstanbul" and match nothing.
+	if got := ToLower("ISTANBUL"); got == want {
+		t.Fatalf("ToLower(%q) = %q, expected the Turkish dotless ı — has the I/ı rule gone?", "ISTANBUL", got)
+	}
+}
+
+func TestToASCIIIsIdempotent(t *testing.T) {
+	inputs := []string{"İstanbul", "Şanlıurfa", "Hakkâri", "Ankara", "café", ""}
+
+	for _, input := range inputs {
+		once := ToASCII(input)
+		if twice := ToASCII(once); twice != once {
+			t.Errorf("ToASCII is not idempotent for %q: %q then %q", input, once, twice)
+		}
+	}
+}
