@@ -83,3 +83,40 @@ func Title(s string) string {
 func continuesWord(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '\'' || r == '’'
 }
+
+// turkishToASCII maps each Turkish letter that has no ASCII form to its closest
+// ASCII equivalent, including the circumflexed vowels that appear in words like
+// Hakkâri, kâğıt, and mahkûm.
+//
+// The two entries that matter most are ı to i and İ to I: they are what let a
+// name typed on an ASCII keyboard fold to the same key as its properly spelled
+// form. See [PlateFromCity].
+var turkishToASCII = map[rune]rune{
+	'ı': 'i', 'İ': 'I',
+	'ş': 's', 'Ş': 'S',
+	'ğ': 'g', 'Ğ': 'G',
+	'ü': 'u', 'Ü': 'U',
+	'ö': 'o', 'Ö': 'O',
+	'ç': 'c', 'Ç': 'C',
+	'â': 'a', 'Â': 'A',
+	'î': 'i', 'Î': 'I',
+	'û': 'u', 'Û': 'U',
+}
+
+// ToASCII returns s with Turkish letters replaced by their plain ASCII
+// equivalents, so that "Şanlıurfa" becomes "Sanliurfa" and "Hakkâri" becomes
+// "Hakkari".
+//
+// Letter case is preserved: each Turkish letter maps to the ASCII letter of the
+// same case. Anything the table does not cover — including accented letters
+// from other languages — passes through unchanged, so the result is not
+// guaranteed to be pure ASCII for arbitrary input. Callers that need that
+// guarantee should filter afterwards, as [Slugify] does.
+func ToASCII(s string) string {
+	return strings.Map(func(r rune) rune {
+		if ascii, ok := turkishToASCII[r]; ok {
+			return ascii
+		}
+		return r
+	}, s)
+}
