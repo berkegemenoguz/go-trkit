@@ -4,7 +4,12 @@ import "strings"
 
 // A Turkish national number is ten digits: a three-digit prefix — an operator
 // prefix for mobiles, an area code for landlines — followed by seven more.
-const nationalNumberLength = 10
+const (
+	nationalNumberLength = 10
+
+	// countryCallingCode prefixes numbers in their canonical E.164 form.
+	countryCallingCode = "+90"
+)
 
 // IsValidMobilePhone reports whether phone is a well-formed Turkish mobile
 // number.
@@ -36,8 +41,25 @@ func IsValidLandlinePhone(phone string) bool {
 // The two categories cannot overlap: area codes begin with 2, 3, or 4, and
 // mobile prefixes begin with 5.
 func IsValidPhone(phone string) bool {
+	_, err := NormalizePhone(phone)
+	return err == nil
+}
+
+// NormalizePhone returns phone in canonical E.164 form — "+90" followed by the
+// ten national digits — so that the many ways one number can be written all
+// collapse to a single string suitable for storing and comparing.
+//
+// It validates while it goes, accepting exactly what [IsValidPhone] accepts:
+// anything it returns is a real Turkish mobile or landline number. Invalid
+// input yields an empty string and an error matching [ErrInvalidPhone].
+//
+// The function is idempotent, and its output is itself valid input.
+func NormalizePhone(phone string) (string, error) {
 	n, ok := nationalNumber(phone)
-	return ok && (isMobileNational(n) || isLandlineNational(n))
+	if !ok || !(isMobileNational(n) || isLandlineNational(n)) {
+		return "", ErrInvalidPhone
+	}
+	return countryCallingCode + n, nil
 }
 
 // isMobileNational reports whether a ten-digit national number is a mobile one.
