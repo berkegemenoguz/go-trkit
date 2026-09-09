@@ -86,7 +86,20 @@ func TestTitle(t *testing.T) {
 		// A letter after a digit continues the word too.
 		{"digit before letter", "3d yazıcı", "3d Yazıcı"},
 
-		{"acronyms are flattened", "TBMM", "Tbmm"},
+		// An all-capital word with no vowel is an initialism, since Turkish
+		// words always carry one.
+		{"vowelless acronym kept", "TBMM", "TBMM"},
+		{"acronym among words", "KDV dahildir", "KDV Dahildir"},
+		{"acronym before a word", "TBMM üyesi", "TBMM Üyesi"},
+
+		// An acronym that does contain a vowel cannot be told from a shouted
+		// word by shape alone, so it is title-cased. TitleWith names them.
+		{"acronym with vowels is not detected", "TÜBİTAK", "Tübitak"},
+
+		// Capitals are never handed out, only kept.
+		{"lowercase is never promoted", "aş pişirdim", "Aş Pişirdim"},
+		{"mixed case is not an acronym", "Tbmm", "Tbmm"},
+
 		{"extra spacing preserved", "  bolu   düzce  ", "  Bolu   Düzce  "},
 		{"empty", "", ""},
 	}
@@ -366,4 +379,76 @@ func ExampleSlugify() {
 func ExampleSlugifyWith() {
 	fmt.Println(SlugifyWith("Şanlıurfa Merkez", "_"))
 	// Output: sanliurfa_merkez
+}
+
+// The rule that keeps Title safe: it may preserve capitals a word already had,
+// but it must never introduce them. Without this, an abbreviation spelled like
+// an ordinary word — AS, AŞ — would corrupt every lower-case use of that word.
+func TestTitleNeverPromotesToCapitals(t *testing.T) {
+	inputs := []string{
+		"aş pişirdim", "as kartı", "kdv dahildir", "tbmm üyesi",
+		"tübitak projesi", "ptt şubesi",
+	}
+
+	for _, input := range inputs {
+		got := Title(input)
+		for _, word := range strings.Fields(got) {
+			if isAllUpper(word) {
+				t.Errorf("Title(%q) = %q: word %q was promoted to capitals", input, got, word)
+			}
+		}
+	}
+}
+
+// Detecting "already in capitals" has to use the Turkish mapping. Comparing
+// against strings.ToUpper would call "istanbul" capitalized, since the standard
+// library uppercases it to "ISTANBUL" rather than "İSTANBUL".
+func TestIsAllUpperUsesTurkishRules(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"TBMM", true},
+		{"İSTANBUL", true},
+		{"IĞDIR", true},
+		{"ŞIRNAK", true},
+		{"A", true},
+		{"34-TR", true},
+
+		{"istanbul", false},
+		{"ığdır", false},
+		{"Tbmm", false},
+		{"İstanbul", false},
+
+		// No letters at all: nothing to be capitalized.
+		{"", false},
+		{"1234", false},
+		{"---", false},
+	}
+
+	for _, tt := range tests {
+		if got := isAllUpper(tt.input); got != tt.want {
+			t.Errorf("isAllUpper(%q) = %v, want %v", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestHasVowel(t *testing.T) {
+	withVowel := []string{
+		"TÜBİTAK", "ABD", "AHMET", "aş", "Iğdır", "kâğıt", "mahkûm", "îman",
+	}
+	withoutVowel := []string{
+		"TBMM", "KDV", "TCK", "PTT", "THY", "SGK", "SMS", "Ş", "1234", "",
+	}
+
+	for _, w := range withVowel {
+		if !hasVowel(w) {
+			t.Errorf("hasVowel(%q) = false, want true", w)
+		}
+	}
+	for _, w := range withoutVowel {
+		if hasVowel(w) {
+			t.Errorf("hasVowel(%q) = true, want false", w)
+		}
+	}
 }
