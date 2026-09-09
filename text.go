@@ -55,32 +55,128 @@ func ToLower(s string) string {
 // "istanbul'un" stays lowercase and yields "İstanbul'un". Both the ASCII
 // apostrophe and the typographic one are recognized.
 //
-// Note that lowercasing the remainder flattens acronyms: "TBMM" yields "Tbmm".
+// A word that is already written entirely in capitals and contains no vowel is
+// left alone, because Turkish words always carry a vowel and such a word is
+// therefore an initialism: "TBMM" and "KDV dahildir" survive as written. An
+// acronym that does contain a vowel — TÜBİTAK, ABD — cannot be told apart from
+// a shouted word by its shape alone, so it is title-cased like any other unless
+// named through [TitleWith].
+//
+// Nothing is ever promoted to capitals. A word typed in lower case stays that
+// way, so "aş" does not become "AŞ" on account of an abbreviation that happens
+// to be spelled the same.
+//
+// Title formats; it does not decide what a word means. It is the one function
+// in this package whose correct output depends on that, so treat its result as
+// a sensible default rather than a guarantee. It also does not apply the
+// Turkish Language Institute's rules for titles, which keep conjunctions like
+// "ve" in lower case — Title capitalizes every word, which is what normalizing
+// a name or a place suits.
 func Title(s string) string {
+	return titleWith(s, nil)
+}
+
+func titleWith(s string, acronyms map[string]bool) string {
 	var b strings.Builder
 	b.Grow(len(s))
 
-	atWordStart := true
+	var word []rune
+	flush := func() {
+		if len(word) > 0 {
+			b.WriteString(titleWord(string(word), acronyms))
+			word = word[:0]
+		}
+	}
+
 	for _, r := range s {
+		if isWordRune(r) {
+			word = append(word, r)
+			continue
+		}
+		flush()
+		b.WriteRune(r)
+	}
+	flush()
+
+	return b.String()
+}
+
+// titleWord case-converts a single word, leaving it untouched if it reads as an
+// acronym.
+func titleWord(w string, acronyms map[string]bool) string {
+	if isAcronym(w, acronyms) {
+		return w
+	}
+
+	var b strings.Builder
+	b.Grow(len(w))
+
+	for i, r := range w {
 		switch {
 		case !unicode.IsLetter(r):
 			b.WriteRune(r)
-		case atWordStart:
+		case i == 0:
 			b.WriteRune(upperRune(r))
 		default:
 			b.WriteRune(lowerRune(r))
 		}
-		atWordStart = !continuesWord(r)
 	}
 
 	return b.String()
 }
 
-// continuesWord reports whether r keeps a word going, so that the letter after
-// it is not treated as a word start. Apostrophes count because Turkish attaches
-// suffixes to proper nouns with them, and digits count so that "3d" does not
-// become "3D".
-func continuesWord(r rune) bool {
+// isAcronym reports whether w should keep the capitals it was written with.
+//
+// The first condition does the heavy lifting: the word must already be in
+// capitals. That is what keeps the rule from ever promoting a lower-case word,
+// and it is why a short abbreviation colliding with an ordinary word — AS, AŞ —
+// costs nothing to anyone who wrote the ordinary word in lower case.
+func isAcronym(w string, acronyms map[string]bool) bool {
+	if !isAllUpper(w) {
+		return false
+	}
+	return !hasVowel(w) || acronyms[w]
+}
+
+// isAllUpper reports whether every letter in w is already uppercase under
+// Turkish rules, and that w has at least one letter.
+//
+// The comparison goes through [upperRune] rather than the unicode package:
+// "istanbul" uppercases to "İSTANBUL", so testing it against unicode's
+// "ISTANBUL" would wrongly report a lower-case word as already capitalized.
+func isAllUpper(w string) bool {
+	seenLetter := false
+
+	for _, r := range w {
+		if !unicode.IsLetter(r) {
+			continue
+		}
+		seenLetter = true
+		if r != upperRune(r) {
+			return false
+		}
+	}
+
+	return seenLetter
+}
+
+// hasVowel reports whether w contains a Turkish vowel, including the
+// circumflexed forms that appear in words like kâğıt and mahkûm.
+func hasVowel(w string) bool {
+	for _, r := range w {
+		switch r {
+		case 'a', 'e', 'ı', 'i', 'o', 'ö', 'u', 'ü', 'â', 'î', 'û',
+			'A', 'E', 'I', 'İ', 'O', 'Ö', 'U', 'Ü', 'Â', 'Î', 'Û':
+			return true
+		}
+	}
+	return false
+}
+
+// isWordRune reports whether r belongs to a word rather than separating two of
+// them. Apostrophes count because Turkish attaches suffixes to proper nouns
+// with them, and digits count so that "3d" does not become "3D".
+func isWordRune(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '\'' || r == '’'
 }
 
