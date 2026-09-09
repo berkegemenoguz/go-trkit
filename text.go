@@ -120,3 +120,49 @@ func ToASCII(s string) string {
 		return r
 	}, s)
 }
+
+// Slugify returns s as a URL slug: transliterated to ASCII, lowercased, with
+// runs of anything else collapsed into single hyphens and no hyphen at either
+// end. "Şanlıurfa Merkez" becomes "sanliurfa-merkez".
+//
+// Only a-z and 0-9 survive; every other character acts as a separator. Letters
+// that [ToASCII] does not cover therefore drop out rather than appearing in the
+// slug, which is what keeps the result safe to put in a URL.
+func Slugify(s string) string {
+	return SlugifyWith(s, "-")
+}
+
+// SlugifyWith is [Slugify] with a separator of the caller's choosing, for the
+// underscores some systems expect. An empty separator runs the words together.
+//
+// The separator is inserted verbatim and is not itself sanitized.
+func SlugifyWith(s, sep string) string {
+	// strings.ToLower, deliberately, not this package's ToLower: after ToASCII
+	// the text is ASCII, and the Turkish rule would turn I back into ı — a
+	// non-ASCII rune that the filter below would then discard.
+	ascii := strings.ToLower(ToASCII(s))
+
+	var b strings.Builder
+	b.Grow(len(ascii))
+
+	separatorPending, wroteAny := false, false
+	for i := 0; i < len(ascii); i++ {
+		c := ascii[i]
+
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+			if separatorPending && wroteAny {
+				b.WriteString(sep)
+			}
+			b.WriteByte(c)
+			separatorPending, wroteAny = false, true
+			continue
+		}
+
+		// Anything else only marks a boundary. Writing the separator lazily —
+		// when the next kept character arrives — is what collapses runs and
+		// trims the ends in one pass.
+		separatorPending = true
+	}
+
+	return b.String()
+}
