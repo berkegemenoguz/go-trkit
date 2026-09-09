@@ -2,6 +2,7 @@ package trkit
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -359,4 +360,52 @@ func TestFormatIBANWidth(t *testing.T) {
 	if len(formatted) != want {
 		t.Errorf("len(%q) = %d, want %d", formatted, len(formatted), want)
 	}
+}
+
+func ExampleIsValidIBAN() {
+	fmt.Println(IsValidIBAN("TR33 0006 1005 1978 6457 8413 26"))
+	fmt.Println(IsValidIBAN("tr330006100519786457841326"))
+
+	// A valid IBAN, but not a Turkish one.
+	fmt.Println(IsValidIBAN("DE89370400440532013000"))
+	// Output:
+	// true
+	// true
+	// false
+}
+
+func ExampleNormalizeIBAN() {
+	// However it is written, one number gives one canonical string to store.
+	for _, written := range []string{
+		"TR33 0006 1005 1978 6457 8413 26",
+		"tr330006100519786457841326",
+		"  TR330006100519786457841326  ",
+	} {
+		iban, err := NormalizeIBAN(written)
+		if err != nil {
+			fmt.Println("error:", err)
+			continue
+		}
+		fmt.Println(iban)
+	}
+	// Output:
+	// TR330006100519786457841326
+	// TR330006100519786457841326
+	// TR330006100519786457841326
+}
+
+func ExampleFormatIBAN() {
+	pretty, err := FormatIBAN("TR330006100519786457841326")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(pretty)
+	// Output: TR33 0006 1005 1978 6457 8413 26
+}
+
+func ExampleNormalizeIBAN_invalid() {
+	_, err := NormalizeIBAN("TR00 1234")
+	fmt.Println(errors.Is(err, ErrInvalidIBAN))
+	// Output: true
 }
