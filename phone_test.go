@@ -2,6 +2,7 @@ package trkit
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -353,4 +354,42 @@ func TestNormalizePhoneCoversEveryAreaCode(t *testing.T) {
 			t.Errorf("NormalizePhone(%q) = %q, want %q", number, got, want)
 		}
 	}
+}
+
+func ExampleIsValidPhone() {
+	fmt.Println(IsValidPhone("0532 123 45 67")) // mobile
+	fmt.Println(IsValidPhone("0212 555 12 34")) // landline
+	fmt.Println(IsValidPhone("0299 555 12 34")) // no such area code
+	// Output:
+	// true
+	// true
+	// false
+}
+
+func ExampleNormalizePhone() {
+	// Every way of writing one number collapses to the same E.164 string.
+	for _, written := range []string{
+		"0532 123 45 67",
+		"+90 532 123 45 67",
+		"(0532) 123-45-67",
+		"5321234567",
+	} {
+		phone, err := NormalizePhone(written)
+		if err != nil {
+			fmt.Println("error:", err)
+			continue
+		}
+		fmt.Println(phone)
+	}
+	// Output:
+	// +905321234567
+	// +905321234567
+	// +905321234567
+	// +905321234567
+}
+
+func ExampleNormalizePhone_invalid() {
+	_, err := NormalizePhone("0532 123 45")
+	fmt.Println(errors.Is(err, ErrInvalidPhone))
+	// Output: true
 }
