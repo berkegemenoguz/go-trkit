@@ -16,6 +16,36 @@
 //
 // trkit depends on nothing outside the Go standard library.
 //
+// # Getting started
+//
+// The usual job is checking what a form submitted and putting it into the one
+// shape worth storing:
+//
+//	if !trkit.IsValidTCKN(form.NationalID) {
+//		return errors.New("invalid national identity number")
+//	}
+//
+//	iban, err := trkit.NormalizeIBAN(form.IBAN)
+//	if err != nil {
+//		return fmt.Errorf("iban: %w", err)
+//	}
+//
+//	phone, err := trkit.NormalizePhone(form.Phone)
+//	if err != nil {
+//		return fmt.Errorf("phone: %w", err)
+//	}
+//
+//	// iban and phone are canonical now: "TR33..." and "+905321234567",
+//	// whatever spacing or country prefix they arrived with.
+//
+// The Normalize functions validate as they go, so a value they return has
+// already passed the matching IsValid check. Their errors are sentinel values,
+// which callers compare with [errors.Is]:
+//
+//	if errors.Is(err, trkit.ErrInvalidIBAN) {
+//		// ...
+//	}
+//
 // # Turkish case conversion
 //
 // Turkish pairs i with İ and ı with I, which differs from the default Unicode
