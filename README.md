@@ -4,8 +4,8 @@ Validation, normalization, and text utilities for data specific to Türkiye —
 identity numbers, IBANs, license plates, phone numbers, and Turkish-aware text
 handling.
 
-> **Status: under development.** The API below is the target for `v0.1.0`. Nothing
-> is released yet; import paths and signatures may still change.
+> **Status:** every function below is implemented and tested, but no version has been
+> tagged yet. Signatures may still change until `v0.1.0`.
 
 ## Why
 
@@ -29,13 +29,17 @@ The module path ends in `go-trkit`, but the package is named `trkit`.
 ## Quick start
 
 ```go
-trkit.IsValidTCKN("12345678950")   // checksum-verified national ID
-trkit.IsValidIBAN("TR330006100519786457841326")
-trkit.CityFromPlate(34)            // "İstanbul", nil
-trkit.ToUpper("izmir")             // "İZMİR", not "IZMIR"
-trkit.Slugify("Şanlıurfa Merkez")  // "sanliurfa-merkez"
-trkit.NormalizePhone("0532 123 45 67")
+trkit.IsValidTCKN("12345678950")                       // true
+trkit.IsValidIBAN("TR33 0006 1005 1978 6457 8413 26")  // true — spacing is ignored
+trkit.ToUpper("izmir")                                 // "İZMİR", where strings.ToUpper gives "IZMIR"
+trkit.Slugify("Şanlıurfa Merkez")                      // "sanliurfa-merkez"
+
+city, _ := trkit.CityFromPlate(34)                      // "İstanbul"
+phone, _ := trkit.NormalizePhone("0532 123 45 67")      // "+905321234567"
 ```
+
+The `Normalize` functions validate as they go, so anything they return has already
+passed the matching `IsValid` check — one call does both jobs.
 
 ## API
 
@@ -110,6 +114,34 @@ if errors.Is(err, trkit.ErrUnknownPlateCode) {
   of the wrong length. The package validates what its name promises rather than
   shipping that half-measure.
 - **Zero dependencies.** Standard library only, by design.
+
+## Testing
+
+```
+go test ./...
+```
+
+Beyond table-driven tests, the suite pins the properties that matter and would
+otherwise rot quietly:
+
+- **Round trips.** All 81 provinces resolve from code to name and back; a formatted
+  IBAN normalizes to the number it came from.
+- **Idempotence.** Normalizing or slugifying an already-processed value changes
+  nothing, so callers need not track whether a function has run before.
+- **Agreement.** `IsValidIBAN` and `NormalizeIBAN` must accept exactly the same
+  inputs, as must `IsValidPhone` and `NormalizePhone`.
+- **Cross-checked data.** The area code table is validated against the plate table:
+  every province must be reachable by phone, spelled identically in both.
+- **Fuzz targets** for every function that takes a string, asserting output
+  invariants — a slug contains only URL-safe characters, a normalized value is
+  itself valid input — rather than only the absence of a panic:
+
+```
+go test -fuzz=FuzzSlugify -fuzztime=30s
+```
+
+CI runs `gofmt`, `go vet`, and `go test -race -cover` on Go 1.21 (the version
+`go.mod` declares) and on current stable.
 
 ## Roadmap
 
