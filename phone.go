@@ -17,6 +17,29 @@ func IsValidMobilePhone(phone string) bool {
 	return ok && isMobileNational(n)
 }
 
+// IsValidLandlinePhone reports whether phone is a well-formed Turkish landline
+// number.
+//
+// It accepts the same written forms as [IsValidMobilePhone] and requires ten
+// national digits whose first three are a real area code. Unlike the mobile
+// check, this one is strict: area codes belong to provinces and have not
+// changed since 1999, so an unknown code means a wrong number rather than a
+// stale table.
+func IsValidLandlinePhone(phone string) bool {
+	n, ok := nationalNumber(phone)
+	return ok && isLandlineNational(n)
+}
+
+// IsValidPhone reports whether phone is a well-formed Turkish number of either
+// kind, mobile or landline.
+//
+// The two categories cannot overlap: area codes begin with 2, 3, or 4, and
+// mobile prefixes begin with 5.
+func IsValidPhone(phone string) bool {
+	n, ok := nationalNumber(phone)
+	return ok && (isMobileNational(n) || isLandlineNational(n))
+}
+
 // isMobileNational reports whether a ten-digit national number is a mobile one.
 //
 // The test is deliberately loose: any prefix starting with 5, rather than a
@@ -27,6 +50,18 @@ func IsValidMobilePhone(phone string) bool {
 // tied to provinces and effectively frozen.
 func isMobileNational(n string) bool {
 	return n[0] == '5'
+}
+
+// isLandlineNational reports whether a ten-digit national number begins with a
+// known area code.
+//
+// The code is read digit by digit rather than through strconv: the three bytes
+// are already known to be digits, so parsing them cannot fail, and doing it by
+// hand avoids an error branch that no input could ever reach.
+func isLandlineNational(n string) bool {
+	code := int(n[0]-'0')*100 + int(n[1]-'0')*10 + int(n[2]-'0')
+	_, known := areaCodeToCity[code]
+	return known
 }
 
 // nationalNumber strips formatting and any country prefix from phone and
