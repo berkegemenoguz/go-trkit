@@ -35,7 +35,7 @@
 //		return fmt.Errorf("phone: %w", err)
 //	}
 //
-//	// iban and phone are canonical now: "TR33..." and "+905321234567",
+//	// iban and phone are canonical now: "TR58..." and "+905321234567",
 //	// whatever spacing or country prefix they arrived with.
 //
 // The Normalize functions validate as they go, so a value they return has

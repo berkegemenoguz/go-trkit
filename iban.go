@@ -53,7 +53,7 @@ func NormalizeIBAN(iban string) (string, error) {
 // FormatIBAN returns iban grouped in fours for display, the form printed on
 // statements and shown in interfaces:
 //
-//	TR33 0006 1005 1978 6457 8413 26
+//	TR58 0000 0011 1111 1111 1111 11
 //
 // The trailing group is shorter, since 26 does not divide evenly by four.
 //

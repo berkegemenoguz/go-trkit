@@ -7,9 +7,13 @@ import (
 )
 
 // validIBAN is the IBAN used throughout these tests: 26 characters, a zero in
-// the reserved position, and a checksum that satisfies mod-97. It is a
-// documentation example, not anyone's account.
-const validIBAN = "TR330006100519786457841326"
+// the reserved position, and a checksum that satisfies mod-97.
+//
+// It is synthetic by construction rather than borrowed from documentation. The
+// bank code is 00000, which is allocated to no bank, and the account number is
+// all ones — so the number cannot belong to anyone. The check digits were
+// computed for that made-up BBAN, which is what makes it pass validation.
+const validIBAN = "TR580000001111111111111111"
 
 // These strings satisfy mod-97 but are not valid Turkish IBANs. They exist to
 // prove that the checksum alone cannot carry the validation: the first two are
@@ -28,17 +32,17 @@ func TestCleanIBAN(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"grouped in fours", "TR33 0006 1005 1978 6457 8413 26", validIBAN},
+		{"grouped in fours", "TR58 0000 0011 1111 1111 1111 11", validIBAN},
 		{"already compact", validIBAN, validIBAN},
-		{"lowercase", "tr330006100519786457841326", validIBAN},
-		{"mixed case and spaces", "tr33 0006 1005 1978 6457 8413 26", validIBAN},
+		{"lowercase", "tr580000001111111111111111", validIBAN},
+		{"mixed case and spaces", "tr58 0000 0011 1111 1111 1111 11", validIBAN},
 		{"surrounding spaces", "  " + validIBAN + "  ", validIBAN},
-		{"irregular spacing", "TR33000  61005 19786457841326", validIBAN},
+		{"irregular spacing", "TR58000  00011 11111111111111", validIBAN},
 		{"empty", "", ""},
 
 		// Hyphens survive cleaning on purpose, so that the structure check
 		// rejects them instead of the cleaner quietly accepting them.
-		{"hyphenated", "TR33-0006-1005", "TR33-0006-1005"},
+		{"hyphenated", "TR58-0000-0011", "TR58-0000-0011"},
 	}
 
 	for _, tt := range tests {
@@ -60,18 +64,18 @@ func TestHasIBANStructure(t *testing.T) {
 
 		// Structure and checksum are separate concerns: a number may be shaped
 		// correctly and still fail mod-97, which this function does not check.
-		{"wrong check digits but right shape", "TR340006100519786457841326", true},
+		{"wrong check digits but right shape", "TR590000001111111111111111", true},
 
 		{"empty", "", false},
 		{"one character short", validIBAN[:25], false},
 		{"one character long", validIBAN + "7", false},
-		{"foreign country code", "DE330006100519786457841326", false},
-		{"lowercase country code", "tr330006100519786457841326", false},
-		{"letter among the digits", "TR33000610051978645784132X", false},
-		{"reserved digit not zero", "TR330006110519786457841326", false},
+		{"foreign country code", "DE580000001111111111111111", false},
+		{"lowercase country code", "tr580000001111111111111111", false},
+		{"letter among the digits", "TR58000000111111111111111X", false},
+		{"reserved digit not zero", "TR580000011111111111111111", false},
 		// Exactly 26 characters, so this fails on the digit check rather than
 		// on length — which is the point of the case.
-		{"hyphen where a digit belongs", "TR33-006100519786457841326", false},
+		{"hyphen where a digit belongs", "TR58-000001111111111111111", false},
 	}
 
 	for _, tt := range tests {
@@ -90,9 +94,9 @@ func TestIBANChecksumOK(t *testing.T) {
 		want  bool
 	}{
 		{"valid", validIBAN, true},
-		{"wrong check digits", "TR340006100519786457841326", false},
+		{"wrong check digits", "TR590000001111111111111111", false},
 		{"empty", "", false},
-		{"invalid character", "TR33000610051978645784132!", false},
+		{"invalid character", "TR58000000111111111111111!", false},
 
 		// The checksum is length-agnostic, so these come out true. Only the
 		// structural check rejects them; see TestIsValidIBANNeedsBothChecks.
@@ -117,19 +121,19 @@ func TestIsValidIBAN(t *testing.T) {
 		want  bool
 	}{
 		{"compact", validIBAN, true},
-		{"grouped in fours", "TR33 0006 1005 1978 6457 8413 26", true},
-		{"lowercase", "tr330006100519786457841326", true},
-		{"mixed case and spaces", "tr33 0006 1005 1978 6457 8413 26", true},
+		{"grouped in fours", "TR58 0000 0011 1111 1111 1111 11", true},
+		{"lowercase", "tr580000001111111111111111", true},
+		{"mixed case and spaces", "tr58 0000 0011 1111 1111 1111 11", true},
 		{"surrounding spaces", "  " + validIBAN + "  ", true},
 
 		{"empty", "", false},
 		{"one character short", validIBAN[:25], false},
 		{"one character long", validIBAN + "7", false},
-		{"wrong check digits", "TR340006100519786457841326", false},
-		{"reserved digit not zero", "TR330006110519786457841326", false},
-		{"hyphen where a digit belongs", "TR33-006100519786457841326", false},
-		{"letter among the digits", "TR33000610051978645784132X", false},
-		{"digits only, no country code", "33000610051978645784132600", false},
+		{"wrong check digits", "TR590000001111111111111111", false},
+		{"reserved digit not zero", "TR580000011111111111111111", false},
+		{"hyphen where a digit belongs", "TR58-000001111111111111111", false},
+		{"letter among the digits", "TR58000000111111111111111X", false},
+		{"digits only, no country code", "58000000111111111111111100", false},
 	}
 
 	for _, tt := range tests {
@@ -165,12 +169,12 @@ func TestNormalizeIBAN(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"grouped in fours", "TR33 0006 1005 1978 6457 8413 26", validIBAN},
+		{"grouped in fours", "TR58 0000 0011 1111 1111 1111 11", validIBAN},
 		{"already compact", validIBAN, validIBAN},
-		{"lowercase", "tr330006100519786457841326", validIBAN},
-		{"mixed case and spaces", "tr33 0006 1005 1978 6457 8413 26", validIBAN},
+		{"lowercase", "tr580000001111111111111111", validIBAN},
+		{"mixed case and spaces", "tr58 0000 0011 1111 1111 1111 11", validIBAN},
 		{"surrounding spaces", "  " + validIBAN + "  ", validIBAN},
-		{"irregular spacing", "TR33000  61005 19786457841326", validIBAN},
+		{"irregular spacing", "TR58000  00011 11111111111111", validIBAN},
 	}
 
 	for _, tt := range tests {
@@ -194,9 +198,9 @@ func TestNormalizeIBANRejects(t *testing.T) {
 		{"empty", ""},
 		{"one character short", validIBAN[:25]},
 		{"one character long", validIBAN + "7"},
-		{"wrong check digits", "TR340006100519786457841326"},
-		{"reserved digit not zero", "TR330006110519786457841326"},
-		{"hyphen where a digit belongs", "TR33-006100519786457841326"},
+		{"wrong check digits", "TR590000001111111111111111"},
+		{"reserved digit not zero", "TR580000011111111111111111"},
+		{"hyphen where a digit belongs", "TR58-000001111111111111111"},
 		{"too short but checksum-clean", shortIBANPassingMod97},
 		{"too long but checksum-clean", longIBANPassingMod97},
 		{"foreign but checksum-clean", foreignIBANPassingMod97},
@@ -221,8 +225,8 @@ func TestNormalizeIBANRejects(t *testing.T) {
 func TestNormalizeIBANIsIdempotent(t *testing.T) {
 	inputs := []string{
 		validIBAN,
-		"TR33 0006 1005 1978 6457 8413 26",
-		"tr330006100519786457841326",
+		"TR58 0000 0011 1111 1111 1111 11",
+		"tr580000001111111111111111",
 		"  " + validIBAN + "  ",
 	}
 
@@ -248,11 +252,11 @@ func TestNormalizeIBANIsIdempotent(t *testing.T) {
 func TestIsValidIBANAgreesWithNormalize(t *testing.T) {
 	inputs := []string{
 		validIBAN,
-		"TR33 0006 1005 1978 6457 8413 26",
-		"tr330006100519786457841326",
+		"TR58 0000 0011 1111 1111 1111 11",
+		"tr580000001111111111111111",
 		"",
 		validIBAN[:25],
-		"TR340006100519786457841326",
+		"TR590000001111111111111111",
 		shortIBANPassingMod97,
 		longIBANPassingMod97,
 		foreignIBANPassingMod97,
@@ -268,7 +272,7 @@ func TestIsValidIBANAgreesWithNormalize(t *testing.T) {
 
 // formattedIBAN is validIBAN in display form: six groups of four and a final
 // group of two.
-const formattedIBAN = "TR33 0006 1005 1978 6457 8413 26"
+const formattedIBAN = "TR58 0000 0011 1111 1111 1111 11"
 
 func TestFormatIBAN(t *testing.T) {
 	tests := []struct {
@@ -278,8 +282,8 @@ func TestFormatIBAN(t *testing.T) {
 	}{
 		{"compact", validIBAN, formattedIBAN},
 		{"already formatted", formattedIBAN, formattedIBAN},
-		{"lowercase", "tr330006100519786457841326", formattedIBAN},
-		{"irregular spacing", "TR33000  61005 19786457841326", formattedIBAN},
+		{"lowercase", "tr580000001111111111111111", formattedIBAN},
+		{"irregular spacing", "TR58000  00011 11111111111111", formattedIBAN},
 		{"surrounding spaces", "  " + validIBAN + "  ", formattedIBAN},
 	}
 
@@ -303,8 +307,8 @@ func TestFormatIBANRejects(t *testing.T) {
 	}{
 		{"empty", ""},
 		{"one character short", validIBAN[:25]},
-		{"wrong check digits", "TR340006100519786457841326"},
-		{"reserved digit not zero", "TR330006110519786457841326"},
+		{"wrong check digits", "TR590000001111111111111111"},
+		{"reserved digit not zero", "TR580000011111111111111111"},
 		{"too short but checksum-clean", shortIBANPassingMod97},
 		{"foreign but checksum-clean", foreignIBANPassingMod97},
 	}
@@ -363,8 +367,8 @@ func TestFormatIBANWidth(t *testing.T) {
 }
 
 func ExampleIsValidIBAN() {
-	fmt.Println(IsValidIBAN("TR33 0006 1005 1978 6457 8413 26"))
-	fmt.Println(IsValidIBAN("tr330006100519786457841326"))
+	fmt.Println(IsValidIBAN("TR58 0000 0011 1111 1111 1111 11"))
+	fmt.Println(IsValidIBAN("tr580000001111111111111111"))
 
 	// A valid IBAN, but not a Turkish one.
 	fmt.Println(IsValidIBAN("DE89370400440532013000"))
@@ -377,9 +381,9 @@ func ExampleIsValidIBAN() {
 func ExampleNormalizeIBAN() {
 	// However it is written, one number gives one canonical string to store.
 	for _, written := range []string{
-		"TR33 0006 1005 1978 6457 8413 26",
-		"tr330006100519786457841326",
-		"  TR330006100519786457841326  ",
+		"TR58 0000 0011 1111 1111 1111 11",
+		"tr580000001111111111111111",
+		"  TR580000001111111111111111  ",
 	} {
 		iban, err := NormalizeIBAN(written)
 		if err != nil {
@@ -389,19 +393,19 @@ func ExampleNormalizeIBAN() {
 		fmt.Println(iban)
 	}
 	// Output:
-	// TR330006100519786457841326
-	// TR330006100519786457841326
-	// TR330006100519786457841326
+	// TR580000001111111111111111
+	// TR580000001111111111111111
+	// TR580000001111111111111111
 }
 
 func ExampleFormatIBAN() {
-	pretty, err := FormatIBAN("TR330006100519786457841326")
+	pretty, err := FormatIBAN("TR580000001111111111111111")
 	if err != nil {
 		fmt.Println("error:", err)
 		return
 	}
 	fmt.Println(pretty)
-	// Output: TR33 0006 1005 1978 6457 8413 26
+	// Output: TR58 0000 0011 1111 1111 1111 11
 }
 
 func ExampleNormalizeIBAN_invalid() {

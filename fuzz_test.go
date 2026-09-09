@@ -45,9 +45,9 @@ func FuzzIdentityValidators(f *testing.F) {
 
 func FuzzIBAN(f *testing.F) {
 	for _, seed := range []string{
-		"", validIBAN, "TR33 0006 1005 1978 6457 8413 26", "tr330006100519786457841326",
+		"", validIBAN, "TR58 0000 0011 1111 1111 1111 11", "tr580000001111111111111111",
 		shortIBANPassingMod97, longIBANPassingMod97, foreignIBANPassingMod97,
-		"TR33-006100519786457841326", "\xff", "TR",
+		"TR58-000001111111111111111", "\xff", "TR",
 	} {
 		f.Add(seed)
 	}
