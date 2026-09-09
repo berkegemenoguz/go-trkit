@@ -1,6 +1,9 @@
 package trkit
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // mobileNational is the synthetic mobile number used throughout these tests,
 // written here in the compact national form the parser produces.
@@ -229,4 +232,125 @@ func formatNational(areaCode int, rest string) string {
 		byte('0' + areaCode%10),
 	}
 	return string(digits) + rest
+}
+
+func TestNormalizePhone(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"mobile with trunk prefix", "05321234567", "+905321234567"},
+		{"mobile grouped", "0532 123 45 67", "+905321234567"},
+		{"mobile with country code", "+90 532 123 45 67", "+905321234567"},
+		{"mobile already canonical", "+905321234567", "+905321234567"},
+		{"mobile bare", mobileNational, "+905321234567"},
+		{"mobile with parentheses", "(0532) 123-45-67", "+905321234567"},
+		{"mobile with access prefix", "00905321234567", "+905321234567"},
+		{"landline", "0212 555 12 34", "+902125551234"},
+		{"landline with country code", "+90 312 555 12 34", "+903125551234"},
+		{"surrounding whitespace", "  0532 123 45 67  ", "+905321234567"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NormalizePhone(tt.input)
+			if err != nil {
+				t.Fatalf("NormalizePhone(%q) returned error %v, want none", tt.input, err)
+			}
+			if got != tt.want {
+				t.Errorf("NormalizePhone(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNormalizePhoneRejects(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty", ""},
+		{"one digit short", "0532123456"},
+		{"one digit long", "053212345678"},
+		{"letters", "0532-ABC-4567"},
+		{"unknown area code", "0299 555 12 34"},
+		{"foreign number", "+1 555 123 4567"},
+		{"neither mobile nor landline", "9053212345"},
+		{"separators only", "-- () --"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NormalizePhone(tt.input)
+			if !errors.Is(err, ErrInvalidPhone) {
+				t.Errorf("NormalizePhone(%q) error = %v, want %v", tt.input, err, ErrInvalidPhone)
+			}
+			if got != "" {
+				t.Errorf("NormalizePhone(%q) = %q, want empty string on failure", tt.input, got)
+			}
+		})
+	}
+}
+
+// Normalizing twice must change nothing, and the canonical form must itself be
+// accepted — otherwise a stored number could not be revalidated on read.
+func TestNormalizePhoneIsIdempotentAndValid(t *testing.T) {
+	inputs := []string{
+		"05321234567", "0532 123 45 67", "+90 532 123 45 67",
+		"0212 555 12 34", "(0224) 555-12-34", "00905321234567",
+	}
+
+	for _, input := range inputs {
+		once, err := NormalizePhone(input)
+		if err != nil {
+			t.Fatalf("NormalizePhone(%q) returned error %v, want none", input, err)
+		}
+
+		twice, err := NormalizePhone(once)
+		if err != nil {
+			t.Fatalf("NormalizePhone(%q) returned error %v on second pass, want none", once, err)
+		}
+		if twice != once {
+			t.Errorf("NormalizePhone is not idempotent for %q: %q then %q", input, once, twice)
+		}
+
+		if !IsValidPhone(once) {
+			t.Errorf("IsValidPhone(%q) = false for a normalized number", once)
+		}
+	}
+}
+
+// IsValidPhone is defined in terms of NormalizePhone, so the two must agree on
+// every input. This pins the relationship against a later change to either one.
+func TestIsValidPhoneAgreesWithNormalize(t *testing.T) {
+	inputs := []string{
+		"0532 123 45 67", "0212 555 12 34", "+90 312 555 12 34", "2125551234",
+		"", "0299 555 12 34", "0532123456", "0532-ABC-4567", "+1 555 123 4567",
+		"9053212345", "0599 123 45 67", "-- () --",
+	}
+
+	for _, input := range inputs {
+		_, err := NormalizePhone(input)
+		if got, want := IsValidPhone(input), err == nil; got != want {
+			t.Errorf("IsValidPhone(%q) = %v, but NormalizePhone error = %v", input, got, err)
+		}
+	}
+}
+
+// Every area code must normalize to a canonical number that starts with the
+// country calling code and carries the code's own digits.
+func TestNormalizePhoneCoversEveryAreaCode(t *testing.T) {
+	for code := range areaCodeToCity {
+		number := formatNational(code, "5551234")
+
+		got, err := NormalizePhone(number)
+		if err != nil {
+			t.Errorf("NormalizePhone(%q) returned error %v for area code %d", number, err, code)
+			continue
+		}
+		if want := countryCallingCode + number; got != want {
+			t.Errorf("NormalizePhone(%q) = %q, want %q", number, got, want)
+		}
+	}
 }
