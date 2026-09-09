@@ -2,6 +2,7 @@ package trkit
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -133,4 +134,38 @@ func TestCityIndexIsComplete(t *testing.T) {
 		t.Errorf("cityToPlate has %d entries, want %d: two province names fold to one key",
 			len(cityToPlate), len(plateToCity))
 	}
+}
+
+func ExampleCityFromPlate() {
+	city, err := CityFromPlate(34)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(city)
+	// Output: İstanbul
+}
+
+func ExamplePlateFromCity() {
+	// Case, Turkish letters, and surrounding space are all ignored, so a name
+	// typed on an ASCII keyboard finds the same province as the proper spelling.
+	for _, name := range []string{"İstanbul", "ISTANBUL", "istanbul", " Istanbul "} {
+		code, err := PlateFromCity(name)
+		if err != nil {
+			fmt.Println("error:", err)
+			continue
+		}
+		fmt.Println(code)
+	}
+	// Output:
+	// 34
+	// 34
+	// 34
+	// 34
+}
+
+func ExamplePlateFromCity_unknown() {
+	_, err := PlateFromCity("Kadıköy")
+	fmt.Println(errors.Is(err, ErrUnknownCity))
+	// Output: true
 }
