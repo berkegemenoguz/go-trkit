@@ -1,6 +1,7 @@
 package trkit
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -312,4 +313,57 @@ func TestSlugifyIsIdempotent(t *testing.T) {
 			t.Errorf("Slugify is not idempotent for %q: %q then %q", input, once, twice)
 		}
 	}
+}
+
+func ExampleToUpper() {
+	fmt.Println(ToUpper("izmir"))
+
+	// What the standard library does with the same word, for contrast.
+	fmt.Println(strings.ToUpper("izmir"))
+	// Output:
+	// İZMİR
+	// IZMIR
+}
+
+func ExampleToLower() {
+	fmt.Println(ToLower("IĞDIR"))
+	fmt.Println(strings.ToLower("IĞDIR"))
+	// Output:
+	// ığdır
+	// iğdir
+}
+
+func ExampleTitle() {
+	fmt.Println(Title("ahmet yılmaz"))
+	fmt.Println(Title("AHMET YILMAZ"))
+
+	// A suffix after an apostrophe stays part of the word.
+	fmt.Println(Title("istanbul'un"))
+	// Output:
+	// Ahmet Yılmaz
+	// Ahmet Yılmaz
+	// İstanbul'un
+}
+
+func ExampleToASCII() {
+	fmt.Println(ToASCII("Şanlıurfa"))
+	fmt.Println(ToASCII("Hakkâri"))
+	fmt.Println(ToASCII("Iğdır"))
+	// Output:
+	// Sanliurfa
+	// Hakkari
+	// Igdir
+}
+
+func ExampleSlugify() {
+	fmt.Println(Slugify("Şanlıurfa Merkez"))
+	fmt.Println(Slugify("Kadıköy, İstanbul!"))
+	// Output:
+	// sanliurfa-merkez
+	// kadikoy-istanbul
+}
+
+func ExampleSlugifyWith() {
+	fmt.Println(SlugifyWith("Şanlıurfa Merkez", "_"))
+	// Output: sanliurfa_merkez
 }
