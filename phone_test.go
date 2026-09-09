@@ -126,3 +126,107 @@ func TestAreaCodesCoverEveryProvince(t *testing.T) {
 		t.Errorf("İstanbul has %d area codes, want 2 (European and Asian sides)", covered["İstanbul"])
 	}
 }
+
+func TestIsValidLandlinePhone(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{"istanbul european side", "0212 555 12 34", true},
+		{"istanbul asian side", "0216 555 12 34", true},
+		{"ankara with country code", "+90 312 555 12 34", true},
+		{"bursa with parentheses", "(0224) 555-12-34", true},
+		{"izmir compact", "02325551234", true},
+		{"bare national number", "2125551234", true},
+		{"international access prefix", "00902125551234", true},
+
+		{"empty", "", false},
+		{"mobile", "0532 123 45 67", false},
+		{"unknown area code", "0299 555 12 34", false},
+		{"area code that is a mobile prefix", "0500 555 12 34", false},
+		{"one digit short", "0212555123", false},
+		{"one digit long", "021255512345", false},
+		{"letters", "0212-ABC-1234", false},
+		{"foreign number", "+1 555 123 4567", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsValidLandlinePhone(tt.input); got != tt.want {
+				t.Errorf("IsValidLandlinePhone(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsValidPhone(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{"mobile", "0532 123 45 67", true},
+		{"landline", "0212 555 12 34", true},
+		{"mobile with country code", "+90 532 123 45 67", true},
+		{"landline bare", "3125551234", true},
+
+		{"empty", "", false},
+		{"unknown area code", "0299 555 12 34", false},
+		{"wrong length", "0532123456", false},
+		{"letters", "0532-ABC-4567", false},
+		{"foreign number", "+1 555 123 4567", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsValidPhone(tt.input); got != tt.want {
+				t.Errorf("IsValidPhone(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// IsValidPhone must be exactly the union of the two specific checks, with no
+// behaviour of its own.
+func TestIsValidPhoneIsTheUnion(t *testing.T) {
+	inputs := []string{
+		"0532 123 45 67", "0212 555 12 34", "+90 312 555 12 34", "2125551234",
+		"", "0299 555 12 34", "0532123456", "0532-ABC-4567", "+1 555 123 4567",
+		"9053212345", "0599 123 45 67",
+	}
+
+	for _, input := range inputs {
+		mobile, landline := IsValidMobilePhone(input), IsValidLandlinePhone(input)
+		if got, want := IsValidPhone(input), mobile || landline; got != want {
+			t.Errorf("IsValidPhone(%q) = %v, but mobile=%v landline=%v", input, got, mobile, landline)
+		}
+	}
+}
+
+// No number can be both, because area codes start with 2, 3, or 4 while mobile
+// prefixes start with 5. Checking every area code in the table proves the two
+// sets stay disjoint even if a code is added later.
+func TestMobileAndLandlineNeverOverlap(t *testing.T) {
+	for code := range areaCodeToCity {
+		number := formatNational(code, "5551234")
+
+		if !IsValidLandlinePhone(number) {
+			t.Errorf("area code %d: %q is not accepted as a landline", code, number)
+		}
+		if IsValidMobilePhone(number) {
+			t.Errorf("area code %d: %q is accepted as a mobile number too", code, number)
+		}
+	}
+}
+
+// formatNational builds a national number from an area code and the remaining
+// seven digits.
+func formatNational(areaCode int, rest string) string {
+	digits := []byte{
+		byte('0' + areaCode/100),
+		byte('0' + (areaCode/10)%10),
+		byte('0' + areaCode%10),
+	}
+	return string(digits) + rest
+}
