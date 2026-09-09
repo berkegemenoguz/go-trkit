@@ -53,6 +53,11 @@
 // implement the Turkish rules, so trkit.ToUpper("izmir") yields "İZMİR" where
 // strings.ToUpper yields "IZMIR".
 //
+// [Title] additionally leaves a word alone when it is already written in
+// capitals and carries no vowel, which in Turkish means an initialism: "KDV
+// dahildir" becomes "KDV Dahildir" rather than "Kdv Dahildir". Acronyms that do
+// contain a vowel are named through [TitleWith].
+//
 // This correctness has a consequence worth knowing: because Turkish [ToLower]
 // maps I to ı, it is the wrong tool for normalizing lookup keys typed on an
 // ASCII keyboard. [PlateFromCity] therefore folds through [ToASCII] instead, so
