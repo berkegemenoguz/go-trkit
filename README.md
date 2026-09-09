@@ -1,11 +1,15 @@
 # trkit
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/berkegemenoguz/go-trkit.svg)](https://pkg.go.dev/github.com/berkegemenoguz/go-trkit)
+[![CI](https://github.com/berkegemenoguz/go-trkit/actions/workflows/ci.yml/badge.svg)](https://github.com/berkegemenoguz/go-trkit/actions/workflows/ci.yml)
+
 Validation, normalization, and text utilities for data specific to Türkiye —
 identity numbers, IBANs, license plates, phone numbers, and Turkish-aware text
 handling.
 
-> **Status:** every function below is implemented and tested, but no version has been
-> tagged yet. Signatures may still change until `v0.1.0`.
+> **Status: `v0.1.0`.** The API is complete and covered by tests, but the version is
+> still `v0`, which under semantic versioning means it may change in a minor release
+> while it settles. Pin a version if that matters to you.
 
 ## Why
 
@@ -30,7 +34,7 @@ The module path ends in `go-trkit`, but the package is named `trkit`.
 
 ```go
 trkit.IsValidTCKN("12345678950")                       // true
-trkit.IsValidIBAN("TR33 0006 1005 1978 6457 8413 26")  // true — spacing is ignored
+trkit.IsValidIBAN("TR58 0000 0011 1111 1111 1111 11")  // true — spacing is ignored
 trkit.ToUpper("izmir")                                 // "İZMİR", where strings.ToUpper gives "IZMIR"
 trkit.Slugify("Şanlıurfa Merkez")                      // "sanliurfa-merkez"
 
