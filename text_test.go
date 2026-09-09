@@ -205,3 +205,111 @@ func TestToASCIIIsIdempotent(t *testing.T) {
 		}
 	}
 }
+
+func TestSlugify(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"two words", "Şanlıurfa Merkez", "sanliurfa-merkez"},
+		{"dotted capital I", "İstanbul Büyükşehir", "istanbul-buyuksehir"},
+		{"dotless i", "Iğdır", "igdir"},
+		{"circumflex", "Hakkâri Merkez", "hakkari-merkez"},
+		{"already a slug", "ankara-cankaya", "ankara-cankaya"},
+		{"digits kept", "34 İstanbul 2026", "34-istanbul-2026"},
+
+		{"runs of separators collapse", "a  --  b", "a-b"},
+		{"punctuation becomes separator", "Kadıköy, İstanbul!", "kadikoy-istanbul"},
+		{"leading and trailing trimmed", "  --İzmir--  ", "izmir"},
+		{"apostrophe is a separator", "İstanbul'un", "istanbul-un"},
+
+		{"empty", "", ""},
+		{"only separators", "---", ""},
+		{"nothing keepable", "!!!", ""},
+
+		// Letters ToASCII does not cover drop out instead of reaching the URL.
+		{"foreign accent dropped", "café", "caf"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Slugify(tt.input); got != tt.want {
+				t.Errorf("Slugify(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSlugifyWith(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		separator string
+		want      string
+	}{
+		{"underscore", "Şanlıurfa Merkez", "_", "sanliurfa_merkez"},
+		{"empty separator runs words together", "Şanlıurfa Merkez", "", "sanliurfamerkez"},
+		{"multi-character separator", "a b c", "::", "a::b::c"},
+		{"hyphen matches Slugify", "İstanbul Büyükşehir", "-", "istanbul-buyuksehir"},
+		{"separator not added to empty result", "!!!", "_", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SlugifyWith(tt.input, tt.separator); got != tt.want {
+				t.Errorf("SlugifyWith(%q, %q) = %q, want %q", tt.input, tt.separator, got, tt.want)
+			}
+		})
+	}
+}
+
+// Slugify must be SlugifyWith bound to a hyphen, with no behaviour of its own.
+func TestSlugifyMatchesSlugifyWithHyphen(t *testing.T) {
+	inputs := []string{
+		"Şanlıurfa Merkez", "İstanbul'un", "  --İzmir--  ", "34 İstanbul 2026", "", "!!!",
+	}
+
+	for _, input := range inputs {
+		if got, want := Slugify(input), SlugifyWith(input, "-"); got != want {
+			t.Errorf("Slugify(%q) = %q, but SlugifyWith(%q, \"-\") = %q", input, got, input, want)
+		}
+	}
+}
+
+// A slug must contain nothing but lowercase ASCII letters, digits, and the
+// separator — that is the whole point of producing one.
+func TestSlugifyProducesURLSafeOutput(t *testing.T) {
+	inputs := []string{
+		"Şanlıurfa Merkez", "İSTANBUL", "Iğdır", "Hakkâri", "café",
+		"Kadıköy, İstanbul!", "  --İzmir--  ", "ÇANKAYA/ANKARA",
+	}
+
+	for _, input := range inputs {
+		slug := Slugify(input)
+		for _, r := range slug {
+			isLower := r >= 'a' && r <= 'z'
+			isDigit := r >= '0' && r <= '9'
+			if !isLower && !isDigit && r != '-' {
+				t.Errorf("Slugify(%q) = %q contains %q, which is not URL-safe", input, slug, r)
+			}
+		}
+		if strings.HasPrefix(slug, "-") || strings.HasSuffix(slug, "-") {
+			t.Errorf("Slugify(%q) = %q has a leading or trailing separator", input, slug)
+		}
+		if strings.Contains(slug, "--") {
+			t.Errorf("Slugify(%q) = %q has a doubled separator", input, slug)
+		}
+	}
+}
+
+func TestSlugifyIsIdempotent(t *testing.T) {
+	inputs := []string{"Şanlıurfa Merkez", "İstanbul'un", "  --İzmir--  ", "café", ""}
+
+	for _, input := range inputs {
+		once := Slugify(input)
+		if twice := Slugify(once); twice != once {
+			t.Errorf("Slugify is not idempotent for %q: %q then %q", input, once, twice)
+		}
+	}
+}
