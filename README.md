@@ -7,9 +7,11 @@ Validation, normalization, and text utilities for data specific to Türkiye —
 identity numbers, IBANs, license plates, phone numbers, and Turkish-aware text
 handling.
 
-> **Status: `v0.1.0`.** The API is complete and covered by tests, but the version is
+> **Status: `v0.2.0`.** The API is complete and covered by tests, but the version is
 > still `v0`, which under semantic versioning means it may change in a minor release
 > while it settles. Pin a version if that matters to you.
+>
+> `v0.2.0` changes what `Title` does with acronyms — see below.
 
 ## Why
 
@@ -75,17 +77,34 @@ passed the matching `IsValid` check — one call does both jobs.
 |---|---|
 | `ToUpper(s string) string` | Uppercase with Turkish i/İ rules |
 | `ToLower(s string) string` | Lowercase with Turkish I/ı rules |
-| `Title(s string) string` | Capitalizes the first letter of each word and lowercases the rest |
+| `Title(s string) string` | Capitalizes the first letter of each word, lowercases the rest, keeps acronyms |
+| `TitleWith(s string, acronyms ...string) string` | `Title`, told which vowel-bearing acronyms to keep |
 | `ToASCII(s string) string` | Transliterates Turkish letters to plain ASCII |
 | `Slugify(s string) string` | URL slug, hyphen-separated |
 | `SlugifyWith(s, sep string) string` | URL slug with a custom separator |
 
 `Title` lowercases the remainder of each word, so it normalizes both `ahmet yılmaz`
-and `AHMET YILMAZ` to `Ahmet Yılmaz`. The trade-off is that acronyms are flattened:
-`TBMM` becomes `Tbmm`. Preserving them is planned — see [Roadmap](#roadmap).
+and `AHMET YILMAZ` to `Ahmet Yılmaz`. A word continues through letters, digits, and
+apostrophes, so Turkish suffixes stay lowercase: `istanbul'un` becomes `İstanbul'un`.
 
-A word continues through letters, digits, and apostrophes, so Turkish suffixes stay
-lowercase: `istanbul'un` becomes `İstanbul'un`.
+**Acronyms.** A word already written in capitals with no vowel is left alone, since
+Turkish words always carry one — `KDV dahildir` stays `KDV Dahildir`. An acronym that
+does contain a vowel cannot be told from a shouted word by its shape, so name it:
+
+```go
+trkit.Title("TÜBİTAK projesi")                        // "Tübitak Projesi"
+trkit.TitleWith("TÜBİTAK projesi", "TÜBİTAK")         // "TÜBİTAK Projesi"
+```
+
+Capitals are only ever kept, never introduced. `trkit.TitleWith("tübitak", "TÜBİTAK")`
+returns `Tübitak`: a word written in lower case was not meant as an acronym. This is
+what stops an abbreviation from corrupting an ordinary word spelled the same way — `aş`
+stays `Aş`, whatever is on the acronym list.
+
+`Title` formats; it does not decide what a word means. Treat its output as a sensible
+default rather than a guarantee. It also does not apply the Turkish Language Institute's
+rules for *titles*, which keep conjunctions like `ve` in lower case — `Title` capitalizes
+every word, which is what normalizing a name or a place calls for.
 
 ### Phone numbers
 
@@ -146,18 +165,6 @@ go test -fuzz=FuzzSlugify -fuzztime=30s
 
 CI runs `gofmt`, `go vet`, and `go test -race -cover` on Go 1.21 (the version
 `go.mod` declares) and on current stable.
-
-## Roadmap
-
-**Preserving acronyms in `Title`.** Today `Title("TBMM")` returns `Tbmm`, because the
-function lowercases whatever follows the first letter. Acronyms should stay fully
-uppercase, and a later release will make them so.
-
-Detecting them automatically is harder than it looks: `TBMM` and `AHMET` are both short,
-all-uppercase words, so no rule based on shape alone separates an acronym from a shouted
-name. The likely design is a built-in set of common Turkish acronyms that callers can
-extend, rather than a heuristic that guesses wrong in both directions. Until then, keep
-acronyms out of the strings you pass to `Title`, or restore them afterwards.
 
 ## License
 
