@@ -76,6 +76,38 @@ func Title(s string) string {
 	return titleWith(s, nil)
 }
 
+// TitleWith is [Title] told which acronyms to recognize, for the ones it cannot
+// work out on its own — those containing a vowel, like TÜBİTAK or ABD.
+//
+//	TitleWith("tübitak ve TÜBİTAK", "TÜBİTAK")  // "Tübitak Ve TÜBİTAK"
+//
+// The listed words may be written in any case; they are matched against words
+// in s that are already fully capitalized. This does not change the rule that
+// capitals are only kept, never introduced: naming TÜBİTAK will not turn a
+// lower-case "tübitak" into one, because a word written in lower case was not
+// meant as an acronym.
+//
+// Words with no vowel are still recognized without being listed, so a caller
+// usually needs to name only the handful of vowel-bearing acronyms that appear
+// in its own data.
+func TitleWith(s string, acronyms ...string) string {
+	return titleWith(s, acronymSet(acronyms))
+}
+
+// acronymSet folds the caller's acronyms into the form [isAcronym] compares
+// against: fully capitalized under Turkish rules.
+func acronymSet(acronyms []string) map[string]bool {
+	if len(acronyms) == 0 {
+		return nil
+	}
+
+	set := make(map[string]bool, len(acronyms))
+	for _, a := range acronyms {
+		set[ToUpper(a)] = true
+	}
+	return set
+}
+
 func titleWith(s string, acronyms map[string]bool) string {
 	var b strings.Builder
 	b.Grow(len(s))
