@@ -1,6 +1,9 @@
 package trkit
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // Every identity number in this file is synthetic. Each satisfies the published
 // checksum but was generated from an obviously artificial digit sequence, so no
@@ -123,4 +126,20 @@ func TestTCKNCheckDigitsAreUnique(t *testing.T) {
 			t.Errorf("prefix %q: %d checksum pairs accepted, want exactly 1", prefix, accepted)
 		}
 	}
+}
+
+func ExampleIsValidTCKN() {
+	fmt.Println(IsValidTCKN("12345678950"))
+	fmt.Println(IsValidTCKN("12345678951")) // last digit does not check out
+	// Output:
+	// true
+	// false
+}
+
+func ExampleIsValidVKN() {
+	fmt.Println(IsValidVKN("1234567890"))
+	fmt.Println(IsValidVKN("1234567891")) // check digit does not match
+	// Output:
+	// true
+	// false
 }
