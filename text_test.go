@@ -350,11 +350,15 @@ func ExampleTitle() {
 	fmt.Println(Title("ahmet yılmaz"))
 	fmt.Println(Title("AHMET YILMAZ"))
 
+	// A word in capitals with no vowel is an initialism, and is left alone.
+	fmt.Println(Title("KDV dahildir"))
+
 	// A suffix after an apostrophe stays part of the word.
 	fmt.Println(Title("istanbul'un"))
 	// Output:
 	// Ahmet Yılmaz
 	// Ahmet Yılmaz
+	// KDV Dahildir
 	// İstanbul'un
 }
 
@@ -451,4 +455,84 @@ func TestHasVowel(t *testing.T) {
 			t.Errorf("hasVowel(%q) = true, want false", w)
 		}
 	}
+}
+
+func TestTitleWith(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		acronyms []string
+		want     string
+	}{
+		{"names a vowel-bearing acronym", "TÜBİTAK projesi", []string{"TÜBİTAK"}, "TÜBİTAK Projesi"},
+		{"several acronyms", "ABD ve AB", []string{"ABD", "AB"}, "ABD Ve AB"},
+
+		// The caller may write the acronym however they like; matching folds
+		// both sides with the Turkish uppercase rule.
+		{"caller writes it lowercase", "TÜBİTAK", []string{"tübitak"}, "TÜBİTAK"},
+		{"caller writes it title-cased", "TÜBİTAK", []string{"Tübitak"}, "TÜBİTAK"},
+
+		// Naming an acronym does not make Title promote a lower-case word: the
+		// writer did not capitalize it, so they did not mean the acronym.
+		{"lowercase stays lowercase", "tübitak projesi", []string{"TÜBİTAK"}, "Tübitak Projesi"},
+
+		// The vowelless rule keeps working alongside the named ones.
+		{"heuristic still applies", "TBMM ve TÜBİTAK", []string{"TÜBİTAK"}, "TBMM Ve TÜBİTAK"},
+
+		{"acronym absent from the text", "ahmet yılmaz", []string{"TÜBİTAK"}, "Ahmet Yılmaz"},
+		{"unlisted acronym is title-cased", "ASELSAN", []string{"TÜBİTAK"}, "Aselsan"},
+		{"empty input", "", []string{"TÜBİTAK"}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := TitleWith(tt.input, tt.acronyms...); got != tt.want {
+				t.Errorf("TitleWith(%q, %q) = %q, want %q", tt.input, tt.acronyms, got, tt.want)
+			}
+		})
+	}
+}
+
+// With no acronyms named, TitleWith must be Title exactly — no behaviour of its
+// own, so a caller can reach for either without wondering which is which.
+func TestTitleWithNoAcronymsMatchesTitle(t *testing.T) {
+	inputs := []string{
+		"ahmet yılmaz", "AHMET YILMAZ", "TBMM", "KDV dahildir",
+		"istanbul'un", "3d yazıcı", "aş pişirdim", "", "  bolu   düzce  ",
+	}
+
+	for _, input := range inputs {
+		if got, want := TitleWith(input), Title(input); got != want {
+			t.Errorf("TitleWith(%q) = %q, but Title(%q) = %q", input, got, input, want)
+		}
+	}
+}
+
+// Naming acronyms must not open a way around the never-promote rule.
+func TestTitleWithNeverPromotesToCapitals(t *testing.T) {
+	acronyms := []string{"TÜBİTAK", "ABD", "AŞ", "AS", "KDV"}
+	inputs := []string{
+		"tübitak projesi", "abd doları", "aş pişirdim", "as kartı", "kdv dahildir",
+	}
+
+	for _, input := range inputs {
+		got := TitleWith(input, acronyms...)
+		for _, word := range strings.Fields(got) {
+			if isAllUpper(word) {
+				t.Errorf("TitleWith(%q, ...) = %q: word %q was promoted to capitals", input, got, word)
+			}
+		}
+	}
+}
+
+func ExampleTitleWith() {
+	// TÜBİTAK has vowels, so it cannot be told from a shouted word by shape
+	// alone — naming it is what keeps its capitals.
+	fmt.Println(TitleWith("TÜBİTAK projesi", "TÜBİTAK"))
+
+	// Naming it does not capitalize a word the writer left in lower case.
+	fmt.Println(TitleWith("tübitak projesi", "TÜBİTAK"))
+	// Output:
+	// TÜBİTAK Projesi
+	// Tübitak Projesi
 }
