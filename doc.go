@@ -1,11 +1,12 @@
 // Package trkit provides validation, normalization, and text utilities for data
 // specific to Türkiye.
 //
-// The package covers five areas:
+// The package covers six areas:
 //
 //   - Identity numbers: checksum validation for TCKN (national ID) and VKN (tax ID).
 //   - Banking: validation, normalization, and display formatting of Turkish IBANs.
 //   - License plates: two-way lookup between province codes and province names.
+//   - Postal codes: format validation and the province a code belongs to.
 //   - Text: Turkish-aware case conversion, ASCII transliteration, and URL slugs.
 //   - Phone numbers: mobile and landline validation, plus E.164 normalization.
 //
