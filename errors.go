@@ -20,4 +20,8 @@ var (
 	// ErrInvalidPhone reports that a string is not a well-formed Turkish phone
 	// number.
 	ErrInvalidPhone = errors.New("trkit: invalid phone number")
+
+	// ErrInvalidPostalCode reports that a string is not a well-formed Turkish
+	// postal code, or that its first two digits do not name a province.
+	ErrInvalidPostalCode = errors.New("trkit: invalid postal code")
 )
