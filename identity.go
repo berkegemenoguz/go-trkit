@@ -1,5 +1,11 @@
 package trkit
 
+import "strings"
+
+// yknPrefix begins every YKN. The block is set aside for foreign residents, so
+// no TCKN is issued from it.
+const yknPrefix = "99"
+
 // IsValidTCKN reports whether tckn is a well-formed Turkish national identity
 // number (T.C. Kimlik Numarası).
 //
@@ -12,7 +18,25 @@ package trkit
 // this check is well-formed, not necessarily issued — trkit never contacts a
 // registry.
 func IsValidTCKN(tckn string) bool {
-	d, ok := parseDigits(tckn, 11)
+	return hasIdentityChecksum(tckn)
+}
+
+// IsValidYKN reports whether ykn is a well-formed foreign identity number
+// (Yabancı Kimlik Numarası), the number Türkiye issues to foreign residents.
+//
+// A YKN has the same shape and the same two checksum digits as a TCKN. What
+// sets it apart is that it begins with 99, a block reserved for foreigners.
+//
+// As with [IsValidTCKN], passing means well-formed, not issued.
+func IsValidYKN(ykn string) bool {
+	return hasIdentityChecksum(ykn) && strings.HasPrefix(ykn, yknPrefix)
+}
+
+// hasIdentityChecksum reports whether s is eleven ASCII digits, not starting
+// with zero, whose last two digits satisfy the checksum that TCKN and YKN
+// share.
+func hasIdentityChecksum(s string) bool {
+	d, ok := parseDigits(s, 11)
 	if !ok || d[0] == 0 {
 		return false
 	}
