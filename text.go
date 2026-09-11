@@ -72,6 +72,12 @@ func ToLower(s string) string {
 // Turkish Language Institute's rules for titles, which keep conjunctions like
 // "ve" in lower case — Title capitalizes every word, which is what normalizing
 // a name or a place suits.
+//
+// Its exact output is therefore not something to depend on across versions. A
+// validator's answer will not change between releases; Title's judgement calls
+// may be refined in a minor one. Roman numerals are a known case: "XVI"
+// currently comes out as "Xvı", because its I counts as a vowel. Code that
+// needs a fixed rendering should store the result rather than recompute it.
 func Title(s string) string {
 	return titleWith(s, nil)
 }
