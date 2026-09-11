@@ -4,14 +4,12 @@
 [![CI](https://github.com/berkegemenoguz/go-trkit/actions/workflows/ci.yml/badge.svg)](https://github.com/berkegemenoguz/go-trkit/actions/workflows/ci.yml)
 
 Validation, normalization, and text utilities for data specific to Türkiye —
-identity numbers, IBANs, license plates, phone numbers, and Turkish-aware text
-handling.
+identity numbers, IBANs, license plates, postal codes, phone numbers, and
+Turkish-aware text handling.
 
-> **Status: `v0.2.0`.** The API is complete and covered by tests, but the version is
+> **Status: `v0.3.0`.** The API is complete and covered by tests, but the version is
 > still `v0`, which under semantic versioning means it may change in a minor release
 > while it settles. Pin a version if that matters to you.
->
-> `v0.2.0` changes what `Title` does with acronyms — see below.
 
 ## Why
 
@@ -70,6 +68,17 @@ passed the matching `IsValid` check — one call does both jobs.
 |---|---|
 | `CityFromPlate(code int) (string, error)` | Province name for a plate code |
 | `PlateFromCity(city string) (int, error)` | Plate code for a province name |
+
+### Postal codes
+
+| Function | Description |
+|---|---|
+| `IsValidPostalCode(code string) bool` | Five digits, the first two a province plate code |
+| `CityFromPostalCode(code string) (string, error)` | Province a postal code belongs to |
+
+This checks form, not existence: a code that passes is shaped correctly and names a real
+province, but only PTT's register can say whether it is actually assigned to a delivery
+area.
 
 ### Text
 
