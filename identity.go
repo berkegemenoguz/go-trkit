@@ -14,11 +14,16 @@ const yknPrefix = "99"
 // weighted difference between the odd- and even-positioned digits, the eleventh
 // from the sum of the first ten.
 //
+// A number beginning with 99 is rejected. That block is reserved for foreign
+// residents, and a number from it is a YKN rather than a TCKN — see
+// [IsValidYKN]. The two share a checksum, so a form that accepts either should
+// check IsValidTCKN(s) || IsValidYKN(s).
+//
 // Separators and surrounding whitespace are not accepted. A number that passes
 // this check is well-formed, not necessarily issued — trkit never contacts a
 // registry.
 func IsValidTCKN(tckn string) bool {
-	return hasIdentityChecksum(tckn)
+	return hasIdentityChecksum(tckn) && !strings.HasPrefix(tckn, yknPrefix)
 }
 
 // IsValidYKN reports whether ykn is a well-formed foreign identity number
