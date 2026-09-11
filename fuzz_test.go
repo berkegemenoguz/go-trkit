@@ -213,3 +213,37 @@ func FuzzPhone(f *testing.F) {
 		}
 	})
 }
+
+func FuzzPostalCode(f *testing.F) {
+	for _, seed := range []string{
+		"", "34000", "06100", "01000", "81000", "00100", "82000",
+		"3400a", " 3400", "34-00", "٣٤٠٠٠", "\xff",
+	} {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, s string) {
+		city, err := CityFromPostalCode(s)
+
+		if got, want := IsValidPostalCode(s), err == nil; got != want {
+			t.Errorf("IsValidPostalCode(%q) = %v, but CityFromPostalCode error = %v", s, got, err)
+		}
+		if err != nil {
+			if city != "" {
+				t.Errorf("CityFromPostalCode(%q) returned %q alongside an error", s, city)
+			}
+			return
+		}
+
+		if len(s) != postalCodeLength {
+			t.Fatalf("CityFromPostalCode(%q) accepted a string of length %d", s, len(s))
+		}
+
+		// The province must be exactly the one the first two digits name.
+		plate := int(s[0]-'0')*10 + int(s[1]-'0')
+		if want, perr := CityFromPlate(plate); perr != nil || city != want {
+			t.Errorf("CityFromPostalCode(%q) = %q, but CityFromPlate(%d) = %q (err %v)",
+				s, city, plate, want, perr)
+		}
+	})
+}
