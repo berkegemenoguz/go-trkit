@@ -143,3 +143,78 @@ func ExampleIsValidVKN() {
 	// true
 	// false
 }
+
+func TestIsValidYKN(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{"sequential digits", "99123456740", true},
+		{"mostly zeros", "99000000042", true},
+		{"all nines", "99999999990", true},
+		{"repeated ones", "99111111194", true},
+
+		// A TCKN has the right shape and checksum but not the 99 prefix.
+		{"a TCKN", "12345678950", false},
+		{"TCKN starting with 98", "98765432150", false},
+
+		{"empty", "", false},
+		{"one digit short", "9912345674", false},
+		{"one digit long", "991234567401", false},
+		{"wrong check digit", "99123456741", false},
+		{"letter for digit", "9912345674a", false},
+		{"separator", "9912-345674", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsValidYKN(tt.input); got != tt.want {
+				t.Errorf("IsValidYKN(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// The same property TestTCKNCheckDigitsAreUnique pins for TCKN: of the 100
+// possible checksum pairs, exactly one completes a valid YKN.
+func TestYKNCheckDigitsAreUnique(t *testing.T) {
+	prefixes := []string{"991234567", "990000000", "999999999", "991111111"}
+
+	for _, prefix := range prefixes {
+		accepted := 0
+		for tenth := '0'; tenth <= '9'; tenth++ {
+			for eleventh := '0'; eleventh <= '9'; eleventh++ {
+				if IsValidYKN(prefix + string(tenth) + string(eleventh)) {
+					accepted++
+				}
+			}
+		}
+		if accepted != 1 {
+			t.Errorf("prefix %q: %d checksum pairs accepted, want exactly 1", prefix, accepted)
+		}
+	}
+}
+
+// A YKN is 11 digits and a VKN is 10, so neither validator may accept the
+// other's input.
+func TestYKNAndVKNDoNotOverlap(t *testing.T) {
+	for _, ykn := range []string{"99123456740", "99000000042", "99999999990"} {
+		if IsValidVKN(ykn) {
+			t.Errorf("IsValidVKN(%q) = true, want false: that is a YKN", ykn)
+		}
+	}
+	for _, vkn := range []string{"1234567890", "1111111114", "0000000001"} {
+		if IsValidYKN(vkn) {
+			t.Errorf("IsValidYKN(%q) = true, want false: that is a VKN", vkn)
+		}
+	}
+}
+
+func ExampleIsValidYKN() {
+	fmt.Println(IsValidYKN("99123456740"))
+	fmt.Println(IsValidYKN("12345678950")) // a TCKN: right checksum, wrong prefix
+	// Output:
+	// true
+	// false
+}
