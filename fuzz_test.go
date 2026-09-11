@@ -24,7 +24,7 @@ var textInputs = []string{
 func FuzzIdentityValidators(f *testing.F) {
 	for _, seed := range []string{
 		"", "12345678950", "1234567890", "0000000001", "abcdefghijk",
-		"1234567895 ", "١٢٣٤٥٦٧٨٩٥٠", "\xff",
+		"1234567895 ", "١٢٣٤٥٦٧٨٩٥٠", "\xff", "99123456740", "99123456741",
 	} {
 		f.Add(seed)
 	}
@@ -39,6 +39,21 @@ func FuzzIdentityValidators(f *testing.F) {
 		}
 		if IsValidVKN(s) && len(s) != 10 {
 			t.Errorf("IsValidVKN(%q) = true for a string of length %d", s, len(s))
+		}
+
+		// TCKN and YKN divide the shared checksum by prefix, and only by prefix.
+		tckn, ykn := IsValidTCKN(s), IsValidYKN(s)
+		if tckn && ykn {
+			t.Errorf("%q accepted as both a TCKN and a YKN", s)
+		}
+		if tckn && strings.HasPrefix(s, yknPrefix) {
+			t.Errorf("IsValidTCKN(%q) = true for a number in the YKN block", s)
+		}
+		if ykn && !strings.HasPrefix(s, yknPrefix) {
+			t.Errorf("IsValidYKN(%q) = true without the %q prefix", s, yknPrefix)
+		}
+		if (tckn || ykn) != hasIdentityChecksum(s) {
+			t.Errorf("%q: TCKN=%v YKN=%v disagree with the shared checksum", s, tckn, ykn)
 		}
 	})
 }
