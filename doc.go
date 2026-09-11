@@ -3,7 +3,8 @@
 //
 // The package covers six areas:
 //
-//   - Identity numbers: checksum validation for TCKN (national ID) and VKN (tax ID).
+//   - Identity numbers: checksum validation for TCKN (national ID), YKN (foreign
+//     resident ID), and VKN (tax ID).
 //   - Banking: validation, normalization, and display formatting of Turkish IBANs.
 //   - License plates: two-way lookup between province codes and province names.
 //   - Postal codes: format validation and the province a code belongs to.
