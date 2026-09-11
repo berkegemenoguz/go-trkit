@@ -7,9 +7,13 @@ Validation, normalization, and text utilities for data specific to Türkiye —
 identity numbers, IBANs, license plates, postal codes, phone numbers, and
 Turkish-aware text handling.
 
-> **Status: `v0.3.0`.** The API is complete and covered by tests, but the version is
+> **Status: `v0.4.0`.** The API is complete and covered by tests, but the version is
 > still `v0`, which under semantic versioning means it may change in a minor release
 > while it settles. Pin a version if that matters to you.
+>
+> **`v0.4.0` changes `IsValidTCKN`:** a number beginning with 99 is now rejected, since
+> that block belongs to YKN. Code that relied on it accepting both should check
+> `IsValidTCKN(s) || IsValidYKN(s)`.
 
 ## Why
 
@@ -51,8 +55,16 @@ passed the matching `IsValid` check — one call does both jobs.
 
 | Function | Description |
 |---|---|
-| `IsValidTCKN(tckn string) bool` | TCKN (national ID) checksum validation |
+| `IsValidTCKN(tckn string) bool` | TCKN (national ID); rejects the 99 block, which is YKN's |
+| `IsValidYKN(ykn string) bool` | YKN (foreign resident ID): TCKN's checksum, 99 prefix |
 | `IsValidVKN(vkn string) bool` | VKN (tax ID) checksum validation |
+
+TCKN and YKN share a shape and a checksum and are told apart only by prefix, so the
+two validators never agree on a number. A form that takes either:
+
+```go
+ok := trkit.IsValidTCKN(id) || trkit.IsValidYKN(id)
+```
 
 ### Banking
 
@@ -111,7 +123,8 @@ what stops an abbreviation from corrupting an ordinary word spelled the same way
 stays `Aş`, whatever is on the acronym list.
 
 `Title` formats; it does not decide what a word means. Treat its output as a sensible
-default rather than a guarantee. It also does not apply the Turkish Language Institute's
+default rather than a guarantee — its judgement calls may be refined in a minor release,
+unlike a validator's answer, so store the result if you need a fixed rendering. It also does not apply the Turkish Language Institute's
 rules for *titles*, which keep conjunctions like `ve` in lower case — `Title` capitalizes
 every word, which is what normalizing a name or a place calls for.
 
