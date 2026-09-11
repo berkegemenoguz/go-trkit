@@ -32,6 +32,9 @@ func TestIsValidTCKN(t *testing.T) {
 		{"separator", "1234-567895", false},
 		{"all letters", "abcdefghijk", false},
 		{"arabic-indic digits", "١٢٣٤٥٦٧٨٩٥٠", false},
+
+		// Right shape and checksum, but the 99 block belongs to YKN.
+		{"a YKN", "99123456740", false},
 	}
 
 	for _, tt := range tests {
@@ -131,8 +134,10 @@ func TestTCKNCheckDigitsAreUnique(t *testing.T) {
 func ExampleIsValidTCKN() {
 	fmt.Println(IsValidTCKN("12345678950"))
 	fmt.Println(IsValidTCKN("12345678951")) // last digit does not check out
+	fmt.Println(IsValidTCKN("99123456740")) // a YKN — see IsValidYKN
 	// Output:
 	// true
+	// false
 	// false
 }
 
@@ -217,4 +222,26 @@ func ExampleIsValidYKN() {
 	// Output:
 	// true
 	// false
+}
+
+// TCKN and YKN share one checksum and split it between them by prefix. Every
+// number that passes the checksum must be exactly one of the two: never both,
+// which would let a foreign resident pass as a citizen, and never neither,
+// which would lose numbers the checksum says are well-formed.
+func TestTCKNAndYKNPartitionTheChecksum(t *testing.T) {
+	inputs := []string{
+		"12345678950", "11111111110", "10000000078", "98765432150",
+		"99123456740", "99000000042", "99999999990", "99111111194",
+		"12345678951", "99123456741", "01234567890", "", "abcdefghijk",
+	}
+
+	for _, s := range inputs {
+		tckn, ykn := IsValidTCKN(s), IsValidYKN(s)
+		if tckn && ykn {
+			t.Errorf("%q accepted as both a TCKN and a YKN", s)
+		}
+		if got, want := tckn || ykn, hasIdentityChecksum(s); got != want {
+			t.Errorf("%q: TCKN=%v YKN=%v, but the shared checksum says %v", s, tckn, ykn, want)
+		}
+	}
 }
